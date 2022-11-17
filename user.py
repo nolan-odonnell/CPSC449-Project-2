@@ -82,25 +82,6 @@ async def userAuth( username, password ):
         return 401, { "WWW-Authenticate": "Fake Realm" }
 
 
-@app.route("/games/<string:username>/all", methods=["GET"])
-async def all_games(username):
-    db = await _get_db()
-
-    userid = await db.fetch_one(
-            "SELECT userid FROM user WHERE username = :username", values={"username":username})
-    if userid:
-
-        games_val = await db.fetch_all( "SELECT * FROM game as a where gameid IN (select gameid from games where userid = :userid) and a.gstate = :gstate;", values = {"userid":userid[0],"gstate":"In-progress"})
-        
-        if games_val is None or len(games_val) == 0:
-            return { "Message": "No Active Games" },406
-
-        return list(map(dict,games_val))
-
-    else:
-        abort(404)
-
-
 @app.errorhandler(409)
 def conflict(e):
     return {"error": str(e)}, 409
