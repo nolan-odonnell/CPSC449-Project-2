@@ -41,6 +41,19 @@ async def close_connection(exception):
     if db is not None:
         await db.disconnect()
 
+@app.route("/", methods=["GET"])
+def index():
+    return textwrap.dedent(
+        """
+        <h1>Wordle users microservice</h1>
+        """
+    )
+
+#Browser Login Box
+@app.route("/login", methods=["GET"])
+async def login():
+    return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
+
 
 @app.route("/users/", methods=["POST"])
 @validate_request(User)
@@ -64,22 +77,24 @@ async def create_user(data):
     return user, 201
 
 # User authentication endpoint
-@app.route("/user-auth/<string:username>/<string:password>", methods=["GET"])
-async def userAuth( username, password ):
+@app.route("/user-auth/", methods=["GET"])
+async def userAuth():
+    auth = request.authorization
     db = await _get_db()
+    if auth == None:
+        return { "WWW-Authenticate": 'Basic realm="Login Required"' }, 401
     # Selection query with raw queries
     select_query = "SELECT * FROM user WHERE username= :username AND passwrd= :password"
-    values = {"username": username, "password": password}
+    values = {"username": auth["username"], "password": auth["password"]}
 
     # Run the command
     result = await db.fetch_one( select_query, values )
 
     # Is the user registered?
     if result:
-        return { "authenticated": True }, 200
-
+        return { "authenticated": "true" }, 200
     else:
-        return 401, { "WWW-Authenticate": "Fake Realm" }
+        return { "WWW-Authenticate": 'Basic realm="Login Required"' }, 401
 
 
 @app.errorhandler(409)

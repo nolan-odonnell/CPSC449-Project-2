@@ -61,7 +61,7 @@ async def close_connection(exception):
 def index():
     return textwrap.dedent(
         """
-        <h1>Welcome to Wordle 2.0!!!</h1>
+        <h1>Wordle game microservice</h1>
         """
     )
 
