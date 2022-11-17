@@ -27,13 +27,6 @@ dictConfig({
     },
 })
 
-@dataclasses.dataclass
-class User:
-    first_name: str
-    last_name: str
-    user_name: str
-    password: str
-
 
 @dataclasses.dataclass
 class Game:
@@ -78,47 +71,39 @@ def index():
 async def create_game(data):
     db = await _get_db()
     username = dataclasses.asdict(data)
-    # Check if username is in the database
-    valid_user = await db.fetch_one(
-        "SELECT username FROM user WHERE username = :username", username
-    )
-    # app.logger.info("SELECT username FROM user WHERE username = :username", username)
     
-    if valid_user:
-        # Retrieve User Id from their username
-        username = await db.fetch_one(
-            "SELECT username FROM user WHERE username = :username", username
-        )
-        # app.logger.info("SELECT username FROM user WHERE username = :username", username)
+    # if authenticationpart == username.get("username"):
 
-        # Retrive random ID from the answers table
+    # Retrive random ID from the answers table
+    word = await db.fetch_one(
+        "SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1"
+    )
+    # app.logger.info("SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1")
+        
+    # Check if the retrived word is a repeat for the user, and if so grab a new word
+    while await db.fetch_one(
+        "SELECT answerid FROM games WHERE username = :username AND answerid = :answerid",
+        values={"username": username.get("username"), "answerid": word[0]},
+    ):
+        # app.logger.info(""""SELECT answerid FROM games WHERE username = :username AND answerid = :answerid",
+        # values={"username": username[0],"answerid": word[0]}""")
+            
         word = await db.fetch_one(
             "SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1"
         )
         # app.logger.info("SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1")
-        
-        # Check if the retrived word is a repeat for the user, and if so grab a new word
-        while await db.fetch_one(
-            "SELECT answerid FROM games WHERE username = :username AND answerid = :answerid",
-            values={"username": username[0], "answerid": word[0]},
-        ):
-            # app.logger.info(""""SELECT answerid FROM games WHERE username = :username AND answerid = :answerid",
-            # values={"username": username[0],"answerid": word[0]}""")
-            
-            word = await db.fetch_one(
-                "SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1"
-            )
-            # app.logger.info("SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1")
 
         # Create new game with 0 guesses
         query = "INSERT INTO game(guesses, gstate) VALUES(:guesses, :gstate)"
         values = {"guesses": 0, "gstate": "In-progress"}
         cur = await db.execute(query=query, values=values)
+        
+        gameid = uuid.uuid4()
 
         # Create new row into Games table which connect with the recently connected game
         query = "INSERT INTO games(username, answerid, gameid) VALUES(:username, :answerid, :gameid)"
-        values = {"username": username[0], "answerid": word[0], "gameid": cur}
-        cur = await db.execute(query=query, values=values)
+        values = {"username": username.get("username"), "answerid": word[0], "gameid": gameid}
+        await db.execute(query=query, values=values)
 
         return values, 201
 
