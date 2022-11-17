@@ -2,7 +2,7 @@ PRAGMA foreign_KEYs=ON;
 BEGIN TRANSACTION;
 CREATE TABLE games (
     gamesid INTEGER PRIMARY KEY AUTOINCREMENT,
-    userid INTEGER,
+    username INTEGER,
     answerid INTEGER,
     gameid INTEGER,
     FOREIGN KEY(username) REFERENCES user(username),
@@ -34,11 +34,11 @@ CREATE TABLE valid_word(
     valword VARCHAR(5)
 );
 
-CREATE INDEX games_idx_a114f231 ON games(userid, answerid);
+CREATE INDEX games_idx_a114f231 ON games(username, answerid);
 CREATE INDEX games_idx_8df6ac78 ON games(gameid, answerid);
 CREATE INDEX answer_idx_0382b0a6 ON answer(answord);
 CREATE INDEX valid_word_idx_0420916f ON valid_word(valword);
-CREATE INDEX games_idx_25674218 ON games(userid);
+CREATE INDEX games_idx_25674218 ON games(username);
 CREATE INDEX game_idx_0069bed0 ON game(gstate);
 CREATE INDEX guess_idx_0067de6f ON guess(gameid);
 COMMIT;

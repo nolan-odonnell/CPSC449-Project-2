@@ -10,6 +10,7 @@ import toml
 from quart import Quart, g, request, abort
 from quart_schema import QuartSchema, RequestSchemaValidationError, validate_request
 from logging.config import dictConfig
+import uuid
 
 app = Quart(__name__)
 QuartSchema(app)
@@ -85,10 +86,10 @@ async def create_game(data):
     
     if valid_user:
         # Retrieve User Id from their username
-        userid = await db.fetch_one(
-            "SELECT userid FROM user WHERE username = :username", username
+        username = await db.fetch_one(
+            "SELECT username FROM user WHERE username = :username", username
         )
-        # app.logger.info("SELECT userid FROM user WHERE username = :username", username)
+        # app.logger.info("SELECT username FROM user WHERE username = :username", username)
 
         # Retrive random ID from the answers table
         word = await db.fetch_one(
@@ -98,11 +99,11 @@ async def create_game(data):
         
         # Check if the retrived word is a repeat for the user, and if so grab a new word
         while await db.fetch_one(
-            "SELECT answerid FROM games WHERE userid = :userid AND answerid = :answerid",
-            values={"userid": userid[0], "answerid": word[0]},
+            "SELECT answerid FROM games WHERE username = :username AND answerid = :answerid",
+            values={"username": username[0], "answerid": word[0]},
         ):
-            # app.logger.info(""""SELECT answerid FROM games WHERE userid = :userid AND answerid = :answerid",
-            # values={"userid": userid[0],"answerid": word[0]}""")
+            # app.logger.info(""""SELECT answerid FROM games WHERE username = :username AND answerid = :answerid",
+            # values={"username": username[0],"answerid": word[0]}""")
             
             word = await db.fetch_one(
                 "SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1"
@@ -115,8 +116,8 @@ async def create_game(data):
         cur = await db.execute(query=query, values=values)
 
         # Create new row into Games table which connect with the recently connected game
-        query = "INSERT INTO games(userid, answerid, gameid) VALUES(:userid, :answerid, :gameid)"
-        values = {"userid": userid[0], "answerid": word[0], "gameid": cur}
+        query = "INSERT INTO games(username, answerid, gameid) VALUES(:username, :answerid, :gameid)"
+        values = {"username": username[0], "answerid": word[0], "gameid": cur}
         cur = await db.execute(query=query, values=values)
 
         return values, 201
@@ -213,12 +214,12 @@ async def add_guess(data):
 async def all_games(username):
     db = await _get_db()
 
-    userid = await db.fetch_one(
-            "SELECT userid FROM user WHERE username = :username", values={"username":username})
-    if userid:
+    username = await db.fetch_one(
+            "SELECT username FROM user WHERE username = :username", values={"username":username})
+    if username:
 
-        games_val = await db.fetch_all( "SELECT * FROM game as a where gameid IN (select gameid from games where userid = :userid) and a.gstate = :gstate;", values = {"userid":userid[0],"gstate":"In-progress"})
-        # app.logger.info(""""SELECT * FROM game as a where gameid IN (select gameid from games where userid = :userid) and a.gstate = :gstate;", values = {"userid":userid[0],"gstate":"In-progress"}""")
+        games_val = await db.fetch_all( "SELECT * FROM game as a where gameid IN (select gameid from games where username = :username) and a.gstate = :gstate;", values = {"username":username[0],"gstate":"In-progress"})
+        # app.logger.info(""""SELECT * FROM game as a where gameid IN (select gameid from games where username = :username) and a.gstate = :gstate;", values = {"username":username[0],"gstate":"In-progress"}""")
         if games_val is None or len(games_val) == 0:
             return { "Message": "No Active Games" },406
 
@@ -231,9 +232,9 @@ async def all_games(username):
 async def my_game(username,gameid):
     db = await _get_db()
 
-    userid = await db.fetch_one(
-            "SELECT userid FROM user WHERE username = :username", values={"username":username})
-    if userid:
+    username = await db.fetch_one(
+            "SELECT username FROM user WHERE username = :username", values={"username":username})
+    if username:
 
         guess_val = await db.fetch_all( "SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid})
         # app.logger.info(""""SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid}""")
