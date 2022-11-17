@@ -5,7 +5,7 @@ CREATE TABLE games (
     userid INTEGER,
     answerid INTEGER,
     gameid INTEGER,
-    FOREIGN KEY(userid) REFERENCES user(userid),
+    FOREIGN KEY(username) REFERENCES user(username),
     FOREIGN KEY (answerid) REFERENCES answer(answerid),
     FOREIGN KEY(gameid) REFERENCES game(gameid)
 );
@@ -33,4 +33,12 @@ CREATE TABLE valid_word(
     valid_id INTEGER PRIMARY KEY AUTOINCREMENT,
     valword VARCHAR(5)
 );
+
+CREATE INDEX games_idx_a114f231 ON games(userid, answerid);
+CREATE INDEX games_idx_8df6ac78 ON games(gameid, answerid);
+CREATE INDEX answer_idx_0382b0a6 ON answer(answord);
+CREATE INDEX valid_word_idx_0420916f ON valid_word(valword);
+CREATE INDEX games_idx_25674218 ON games(userid);
+CREATE INDEX game_idx_0069bed0 ON game(gstate);
+CREATE INDEX guess_idx_0067de6f ON guess(gameid);
 COMMIT;

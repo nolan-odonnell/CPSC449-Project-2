@@ -9,12 +9,22 @@ import toml
 
 from quart import Quart, g, request, abort
 from quart_schema import QuartSchema, RequestSchemaValidationError, validate_request
+from logging.config import dictConfig
 
 app = Quart(__name__)
 QuartSchema(app)
 
 app.config.from_file(f"./etc/{__name__}.toml", toml.load)
 
+
+dictConfig({
+    'version': 1,
+    'loggers': {
+        'quart.app': {
+            'level': 'ERROR',
+        },
+    },
+})
 
 @dataclasses.dataclass
 class User:
@@ -71,24 +81,33 @@ async def create_game(data):
     valid_user = await db.fetch_one(
         "SELECT username FROM user WHERE username = :username", username
     )
+    # app.logger.info("SELECT username FROM user WHERE username = :username", username)
+    
     if valid_user:
         # Retrieve User Id from their username
         userid = await db.fetch_one(
             "SELECT userid FROM user WHERE username = :username", username
         )
+        # app.logger.info("SELECT userid FROM user WHERE username = :username", username)
 
         # Retrive random ID from the answers table
         word = await db.fetch_one(
             "SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1"
         )
+        # app.logger.info("SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1")
+        
         # Check if the retrived word is a repeat for the user, and if so grab a new word
         while await db.fetch_one(
             "SELECT answerid FROM games WHERE userid = :userid AND answerid = :answerid",
             values={"userid": userid[0], "answerid": word[0]},
         ):
+            # app.logger.info(""""SELECT answerid FROM games WHERE userid = :userid AND answerid = :answerid",
+            # values={"userid": userid[0],"answerid": word[0]}""")
+            
             word = await db.fetch_one(
                 "SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1"
             )
+            # app.logger.info("SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1")
 
         # Create new game with 0 guesses
         query = "INSERT INTO game(guesses, gstate) VALUES(:guesses, :gstate)"
@@ -120,6 +139,8 @@ async def add_guess(data):
     isAnswer= await db.fetch_one(
         "SELECT * FROM answer as a where (select count(*) from games where gameid = :gameid and answerid = a.answerid)>=1 and a.answord = :word;", currGame
         )
+    # app.logger.info("""SELECT * FROM answer as a where (select count(*) from games where gameid = :gameid and answerid = a.answerid)>=1 and a.answord = :word;", currGame""")
+    
     #is guessed word the answer
     if isAnswer is not None and len(isAnswer) >= 1:
         #update game status
@@ -129,20 +150,30 @@ async def add_guess(data):
                 UPDATE game set gstate = :status where gameid = :gameid
                 """,values={"status":"Finished","gameid":currGame['gameid']}
             )
+            
         except sqlite3.IntegrityError as e:
             abort(404, e)
-        return {"guessedWord":currGame["word"], "Accuracy":u'\u2713'*5},201 #should return correct answer? 
+            
+        return {"guessedWord":currGame["word"], "Accuracy":u'\u2713'*5},201
+    
     #if 1 then word is valid otherwise it isn't valid and also check if they exceed guess limit
     isValidGuess = await db.fetch_one("SELECT * from valid_word where valword = :word;", values={"word":currGame["word"]})
+    # app.logger.info(""""SELECT * from valid_word where valword = :word;", values={"word":currGame["word"]}""")
+    
     guessNum = await db.fetch_one("SELECT guesses from game where gameid = :gameid",values={"gameid":currGame["gameid"]})
+    # app.logger.info("""SELECT guesses from game where gameid = :gameid",values={"gameid":currGame["gameid"]}""")
+    
     accuracy = ""
     if(isValidGuess is not None and len(isValidGuess) >= 1 and guessNum[0] < 6):
         try: 
-            #make a dict mapping each character and its position from the answer
+            # make a dict mapping each character and its position from the answer
             answord = await db.fetch_one("SELECT answord FROM answer as a, games as g  where g.gameid = :gameid and g.answerid = a.answerid",values={"gameid":currGame["gameid"]})
+            # app.logger.info(""""SELECT answord FROM answer as a, games as g  where g.gameid = :gameid and g.answerid = a.answerid",values={"gameid":currGame["gameid"]}""")
+             
             ansDict = {}
             for i in range(len(answord[0])):
                 ansDict[answord[0][i]] = i
+                
             #compare location of guessed word with answer
             guess_word = currGame["word"]
             for i in range(len(guess_word)):
@@ -187,7 +218,7 @@ async def all_games(username):
     if userid:
 
         games_val = await db.fetch_all( "SELECT * FROM game as a where gameid IN (select gameid from games where userid = :userid) and a.gstate = :gstate;", values = {"userid":userid[0],"gstate":"In-progress"})
-        
+        # app.logger.info(""""SELECT * FROM game as a where gameid IN (select gameid from games where userid = :userid) and a.gstate = :gstate;", values = {"userid":userid[0],"gstate":"In-progress"}""")
         if games_val is None or len(games_val) == 0:
             return { "Message": "No Active Games" },406
 
@@ -205,7 +236,7 @@ async def my_game(username,gameid):
     if userid:
 
         guess_val = await db.fetch_all( "SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid})
-
+        # app.logger.info(""""SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid}""")
         if guess_val is None or len(guess_val) == 0:
             
             return { "Message": "Not An Active Game" },406
