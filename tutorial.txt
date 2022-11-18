@@ -1,0 +1,67 @@
+# Used for testing purposes, go to root dir 
+# and use  "sudo tail -f /var/log/nginx/access.log"
+# to check and see if load balancer is functioning
+log_format upstreamlog '$server_name to: $upstream_addr [$request] '
+	'upstream_response_time $upstream_response_time'
+	'msec $msec request_time $request_time';
+
+# Ports that load balancer will use
+upstream notes {
+	# ip_hash;  (needed maybe?)
+	server localhost:5000;
+	server localhost:5001;
+	server localhost:5002;
+}
+
+server {
+	listen 80;
+	listen [::]:80;
+
+	server_name tuffix-vm;
+
+	access_log /var/log/nginx/access.log upstreamlog;
+
+	location / {
+		auth_request /auth;
+		auth_request_set $auth_status $upstream_status;
+  	}
+
+	location /users/ {
+		proxy_pass http://127.0.0.1:5100/users/;
+        
+	}
+
+	location /new-game/ {
+		auth_request /auth;
+		auth_request_set $auth_status $upstream_status;
+		proxy_pass http://notes/games;
+	}
+
+	location /get-user-games/ {
+		auth_request /auth;
+		auth_request_set $auth_status $upstream_status;
+		proxy_pass http://notes/games/all;
+	}
+
+	location /grab-game-by-id/ {
+		auth_request /auth;
+		auth_request_set $auth_status $upstream_status;
+		proxy_pass http://notes/games/id/;
+	}
+
+
+	location /game-guess/ {
+		auth_request /auth;
+		auth_request_set $auth_status $upstream_status;
+		proxy_pass http://notes/guess/;
+	}
+
+
+       	location = /auth {
+		internal;
+		proxy_set_header X-Original-URI $request_uri;
+		proxy_pass_request_body off;
+		proxy_set_header Content-Length "";
+		proxy_pass http://127.0.0.1:5100/user-auth/;
+	}
+}

@@ -15,7 +15,7 @@ Steps to run the project:
 
 3. Start the API by running
 
-   foreman start
+   foreman start -m user=1,game=3
 
 4. Go to local.gd docs to view and test all the endpoints
 
