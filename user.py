@@ -49,11 +49,6 @@ def index():
         """
     )
 
-#Browser Login Box
-@app.route("/login", methods=["GET"])
-async def login():
-    return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
-
 
 @app.route("/users/", methods=["POST"])
 @validate_request(User)
@@ -82,7 +77,7 @@ async def userAuth():
     auth = request.authorization
     db = await _get_db()
     if auth == None:
-        return { "WWW-Authenticate": 'Basic realm="Login Required"' }, 401
+        return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
     # Selection query with raw queries
     select_query = "SELECT * FROM user WHERE username= :username AND passwrd= :password"
     values = {"username": auth["username"], "password": auth["password"]}
@@ -94,7 +89,7 @@ async def userAuth():
     if result:
         return { "authenticated": "true" }, 200
     else:
-        return { "WWW-Authenticate": 'Basic realm="Login Required"' }, 401
+        return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
 
 
 @app.errorhandler(409)
