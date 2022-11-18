@@ -1,4 +1,4 @@
-# Wordle Backend Project1 : API Endpoints
+# Wordle Backend Project 2 : API Gateway and Load Balancing
 
 Group 4 team members:
 Florentino Becerra, Mark Carbajal, Nicholas Ayson, Nolan O'donnell
