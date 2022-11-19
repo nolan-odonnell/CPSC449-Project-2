@@ -7,11 +7,11 @@ Steps to run the project:
 
 1. Initialize the database and start the API:
 
-   ./bin/init.sh
+   sh ./bin/init.sh
 
 2. Populate the data base by running the python script:
 
-   dbpop.py
+   python3 dbpop.py
 
 3. Start the API by running
 
