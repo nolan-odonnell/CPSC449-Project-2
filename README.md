@@ -20,6 +20,7 @@ Steps to run the project:
 4. Go to local.gd docs to view and test all the endpoints
 
    http://wordle.local.gd:5000/docs
+   http://wordle.local.gd:5100/docs
 
 
 
