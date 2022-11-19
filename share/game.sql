@@ -4,21 +4,20 @@ CREATE TABLE games (
     gamesid INTEGER PRIMARY KEY AUTOINCREMENT,
     username INTEGER,
     answerid INTEGER,
-    gameid INTEGER,
-    FOREIGN KEY(username) REFERENCES user(username),
+    gameid TEXT,
     FOREIGN KEY (answerid) REFERENCES answer(answerid),
     FOREIGN KEY(gameid) REFERENCES game(gameid)
 );
 
 CREATE TABLE game(
-    gameid INTEGER PRIMARY KEY AUTOINCREMENT,
+    gameid TEXT PRIMARY KEY,
     guesses INTEGER,
     gstate VARCHAR(12)
 );
 
 CREATE TABLE guess(
     guessid INTEGER PRIMARY KEY AUTOINCREMENT,
-    gameid INTEGER,
+    gameid TEXT,
     guessedword VARCHAR(5),
     accuracy VARCHAR(5),
     FOREIGN KEY(gameid) REFERENCES game(gameid)

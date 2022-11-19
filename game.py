@@ -28,13 +28,13 @@ dictConfig({
 })
 
 
-@dataclasses.dataclass
-class Game:
-    username: str
+# @dataclasses.dataclass
+# class Game:
+#     username: str
 
 @dataclasses.dataclass
 class Guess:
-    gameid: int
+    gameid: str
     word: str
 
 
@@ -67,10 +67,12 @@ def index():
 
 
 @app.route("/games/", methods=["POST"])
-@validate_request(Game)
-async def create_game(data):
+# @validate_request(Game)
+async def create_game():
     auth = request.authorization
     db = await _get_db()
+    if auth == None:
+        return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
     if auth["username"]:
         # Retrive random ID from the answers table
         word = await db.fetch_one(
@@ -91,22 +93,21 @@ async def create_game(data):
             )
             # app.logger.info("SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1")
 
-            # uuid for game with 0 guesses
-            gameuuid = str(uuid.uuid4())
+        # uuid for game with 0 guesses
+        gameuuid = str(uuid.uuid4())
             
-            # Create new game with 0 guesses
-            query = "INSERT INTO game(gameid, guesses, gstate) VALUES(:gameid, :guesses, :gstate)"
-            values = {"gameid": gameuuid, "guesses": 0, "gstate": "In-progress"}
-            cur = await db.execute(query=query, values=values)
+        # Create new game with 0 guesses
+        query = "INSERT INTO game(gameid, guesses, gstate) VALUES(:gameid, :guesses, :gstate)"
+        values = {"gameid": gameuuid, "guesses": 0, "gstate": "In-progress"}
+        cur = await db.execute(query=query, values=values)
             
 
-            # Create new row into Games table which connect with the recently connected game
-            query = "INSERT INTO games(username, answerid, gameid) VALUES(:username, :answerid, :gameid)"
-            values = {"username": auth["username"], "answerid": word[0], "gameid": gameuuid}
-            await db.execute(query=query, values=values)
+        # Create new row into Games table which connect with the recently connected game
+        query = "INSERT INTO games(username, answerid, gameid) VALUES(:username, :answerid, :gameid)"
+        values = {"username": auth["username"], "answerid": word[0], "gameid": gameuuid}
+        cur = await db.execute(query=query, values=values)
 
-            return values, 201
-    return { "WWW-Authenticate": "Fake Realm" }, 401
+        return values, 201
 
 
 #Should validate to check if guess is in valid_word table
@@ -119,11 +120,14 @@ async def add_guess(data):
     db = await _get_db() 
     auth = request.authorization
     currGame = dataclasses.asdict(data)
-    
-    valid_game = await db.fetch_one(
-        "SELECT * FROM games WHERE username = :username AND gameid = :gameid;", 
-        values = {"username": auth["username"], "gameid": currGame.get("gameid") }
+    if auth == None:
+        return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
+    if auth["username"]:
+        valid_game = await db.fetch_one(
+            "SELECT * FROM games WHERE username = :username AND gameid = :gameid;", 
+            values = {"username": auth["username"], "gameid": currGame.get('gameid') }
         )
+    
     if valid_game:
         #checks whether guessed word is the answer for that game
         isAnswer= await db.fetch_one(
@@ -200,38 +204,35 @@ async def add_guess(data):
         return {"guessedWord":currGame["word"], "Accuracy":accuracy},201
 
 @app.route("/games/all", methods=["GET"])
-async def all_games(username):
+async def all_games():
     db = await _get_db()
     auth = request.authorization
-
+    if auth == None:
+        return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
     games_val = await db.fetch_all( "SELECT * FROM game as a where gameid IN (select gameid from games where username = :username) and a.gstate = :gstate;", values = {"username":auth["username"],"gstate":"In-progress"})
     # app.logger.info(""""SELECT * FROM game as a where gameid IN (select gameid from games where username = :username) and a.gstate = :gstate;", values = {"username":auth["username"],"gstate":"In-progress"}""")
     if games_val is None or len(games_val) == 0:
         return { "Message": "No Active Games" },406
     return list(map(dict,games_val))
 
-# https://www.geeksforgeeks.org/namedtuple-in-python/
-parameter = collections.namedtuple("parameter", ["name", "operator"])
-
-IDPARAMETER = [parameter("id","=",),]
-
-@app.route("/games/all", methods=["GET"])
-async def my_game(username,gameid):
+# getting games based on gameid 
+@app.route("/games/<string:gameid>", methods=["GET"])
+async def my_game(gameid):
     db = await _get_db()
-    auth = request.authorization
-    gamesid = request.args
     
-    valid_id = await db.fetch_one("SELECT gameid FROM games where username = :username and gameid = :gameid;", values = {"username":auth["username"],"gameid":gamesid[IDPARAMETER[0].name]})
-    if valid_id is None: 
-        return { "Message": "Not a Valid Id for this username" },406
-    if request.ars.get(IDPARAMETER[0].name): 
-        guess_val = await db.fetch_all( "SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid})
-        # app.logger.info(""""SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid}""")
-        if guess_val is None or len(guess_val) == 0:
-            return { "Message": "Not An Active Game" },406
-        return list(map(dict,guess_val))
-    else:
-        return { "Message": "Not a Valid Id" },406
+    auth = request.authorization
+    if auth == None:
+        return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
+    guess_val = await db.fetch_all( "SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid})
+    # app.logger.info(""""SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid}""")
+
+    if guess_val is None or len(guess_val) == 0:
+
+        return { "Message": "No guesses made" },406
+
+    return list(map(dict,guess_val))
+    # else:
+        # return { "Message": "Not A Valid Id" },406
 
 
 @app.errorhandler(409)
