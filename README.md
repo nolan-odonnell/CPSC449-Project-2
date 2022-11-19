@@ -18,9 +18,45 @@ Steps to run the project:
    foreman start -m user=1,game=3
 
 4. Go to local.gd docs to view and test all the endpoints
+   game:  
+   http://wordle.local.gd:5001/docs
+   http://wordle.local.gd:5002/docs
+   http://wordle.local.gd:5003/docs
+   user:  
+   http://wordle.local.gd:5100/docs  
 
-   http://wordle.local.gd:5000/docs
-   http://wordle.local.gd:5100/docs
+Files to turn in:
+
+1. Python source code:
+
+   game.py  
+   user.py  
+
+
+2. Procfile:
+
+   Procfile contains 2 microservices game and user that have no coupling
+
+3. Initialization and population scripts for the databases:
+
+   dbpop.py - populates the database with wordle words
+   game.sql - contains database for game microservice
+   user.sql - contains database for user microservice
+   init.sh - Initializes the databases to be created
+
+4. Nginx configuration files:
+
+   tutorial.txt
+
+5. Any other necessary configuration files:
+   
+   correct.json
+   valid.json - both populate the database with dbpop.py file
+   game.toml 
+   user.toml - allows the source to connect to the database
+
+
+
 
 
 
