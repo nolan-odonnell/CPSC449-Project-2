@@ -30,6 +30,8 @@ Steps to run the project:
    user:  
    http://wordle.local.gd:5100/docs  
 
+   Using http://tuffix-vm should yield in redirecting all requests over to the appropriate microservices.
+
 Files to turn in:
 
 1. Python source code:
