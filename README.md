@@ -13,11 +13,15 @@ Steps to run the project:
 
    python3 dbpop.py
 
-3. Start the API by running
+3. Copy the nginx configuration file to sites-enabled by running:
+
+   sudo cp etc/tutorial.txt /etc/nginx/sites-enabled/tutorial
+
+4. Start the API by running
 
    foreman start -m user=1,game=3
 
-4. Go to local.gd docs to view and test all the endpoints
+5. Go to local.gd docs to view and test all the endpoints
    game:   
    http://wordle.local.gd:5001/docs   
    http://wordle.local.gd:5002/docs   
