@@ -23,12 +23,12 @@ Steps to run the project:
 
 5. Go to local.gd docs to view and test all the endpoints
    game:   
-   http://wordle.local.gd:5001/docs   
-   http://wordle.local.gd:5002/docs   
-   http://wordle.local.gd:5003/docs   
+   http://wordle.local.gd:5100/docs   
+   http://wordle.local.gd:5200/docs   
+   http://wordle.local.gd:5300/docs   
       
    user:  
-   http://wordle.local.gd:5100/docs  
+   http://wordle.local.gd:5000/docs  
 
    Using http://tuffix-vm should yield in redirecting all requests over to the appropriate microservices.
 

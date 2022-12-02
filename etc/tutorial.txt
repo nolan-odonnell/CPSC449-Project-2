@@ -8,9 +8,9 @@ log_format upstreamlog '$server_name to: $upstream_addr [$request] '
 # Ports that load balancer will use
 upstream notes {
 	# ip_hash;  (needed maybe?)
-	server localhost:5000;
-	server localhost:5001;
-	server localhost:5002;
+    server localhost:5100;
+    server localhost:5200;
+    server localhost:5300;
 }
 
 server {
