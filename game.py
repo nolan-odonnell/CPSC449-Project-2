@@ -6,6 +6,7 @@ import dataclasses
 import sqlite3
 import textwrap
 import toml
+import itertools
 
 from quart import Quart, g, request, abort
 from quart_schema import QuartSchema, RequestSchemaValidationError, validate_request
@@ -74,20 +75,21 @@ async def close_connection(exception):
 #     await database.connect()
 #     return database
 
-# async def _get_db():
-#     db1 = getattr(g, "_sqlite_db1", None)
-#     db2 = getattr(g, "_sqlite_db2", None)
-#     db3 = getattr(g, "_sqlite_db3", None)
-#     if db1 is None:
-#         db1 = g._sqlite_db1 = databases.Database(app.config["DATABASES"]["URL1"])
-#         await db1.connect()
-#     if db2 is None:
-#         db2 = g._sqlite_db2 = databases.Database(app.config["DATABASES"]["URL2"])
-#         await db2.connect()
-#     if db3 is None:
-#         db3 = g._sqlite_db3 = databases.Database(app.config["DATABASES"]["URL3"])
-#         await db3.connect()
-#     return db1, db2, db3
+async def _get_read_db_colle():
+    db1 = getattr(g, "_sqlite_db1", None)
+    db2 = getattr(g, "_sqlite_db2", None)
+    db3 = getattr(g, "_sqlite_db3", None)
+    if db1 is None:
+        db1 = g._sqlite_db1 = databases.Database(app.config["DATABASES"]["URL1"])
+        await db1.connect()
+    if db2 is None:
+        db2 = g._sqlite_db2 = databases.Database(app.config["DATABASES"]["URL2"])
+        await db2.connect()
+    if db3 is None:
+        db3 = g._sqlite_db3 = databases.Database(app.config["DATABASES"]["URL3"])
+        await db3.connect()
+    read_db_colle = [db1,db2,db3]
+    return read_db_colle
 
 
 # @app.teardown_appcontext
@@ -105,6 +107,9 @@ async def close_connection(exception):
 #         db3 = g._sqlite_db3 = databases.Database(app.config["DATABASES"]["URL3"])
 #         await db3.disconnect()
 
+
+
+
 @app.route("/", methods=["GET"])
 def index():
     return textwrap.dedent(
@@ -119,24 +124,29 @@ def index():
 async def create_game():
     auth = request.authorization
     db = await _get_db()
+
+    # connect to db replica
+    read_only_db_cycle = itertools.cycle(_get_read_db_colle())
+    next_db = next(read_only_db_cycle)
+
     if auth == None:
         return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
     if auth["username"]:
         # Retrive random ID from the answers table
-        word = await db.fetch_one(
+        word = await next_db.fetch_one(
             "SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1"
         )
         # app.logger.info("SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1")
             
         # Check if the retrived word is a repeat for the user, and if so grab a new word
-        while await db.fetch_one(
+        while await next_db.fetch_one(
             "SELECT answerid FROM games WHERE username = :username AND answerid = :answerid",
             values={"username": auth["username"], "answerid": word[0]},
         ):
             # app.logger.info(""""SELECT answerid FROM games WHERE username = :username AND answerid = :answerid",
             # values={"username": auth["username"],"answerid": word[0]}""")
                 
-            word = await db.fetch_one(
+            word = await next_db.fetch_one(
                 "SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1"
             )
             # app.logger.info("SELECT answerid FROM answer ORDER BY RANDOM() LIMIT 1")
@@ -167,18 +177,23 @@ async def create_game():
 async def add_guess(data):
     db = await _get_db() 
     auth = request.authorization
+
+    # connect to db replica
+    read_only_db_cycle = itertools.cycle(_get_read_db_colle())
+    next_db = next(read_only_db_cycle)
+
     currGame = dataclasses.asdict(data)
     if auth == None:
         return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
     if auth["username"]:
-        valid_game = await db.fetch_one(
+        valid_game = await next_db.fetch_one(
             "SELECT * FROM games WHERE username = :username AND gameid = :gameid;", 
             values = {"username": auth["username"], "gameid": currGame.get('gameid') }
         )
     
     if valid_game:
         #checks whether guessed word is the answer for that game
-        isAnswer= await db.fetch_one(
+        isAnswer= await next_db.fetch_one(
             "SELECT * FROM answer as a where (select count(*) from games where gameid = :gameid and answerid = a.answerid)>=1 and a.answord = :word;", currGame
             )
         # app.logger.info("""SELECT * FROM answer as a where (select count(*) from games where gameid = :gameid and answerid = a.answerid)>=1 and a.answord = :word;", currGame""")
@@ -199,17 +214,17 @@ async def add_guess(data):
             return {"guessedWord":currGame["word"], "Accuracy":u'\u2713'*5},201
     
         #if 1 then word is valid otherwise it isn't valid and also check if they exceed guess limit
-        isValidGuess = await db.fetch_one("SELECT * from valid_word where valword = :word;", values={"word":currGame["word"]})
+        isValidGuess = await next_db.fetch_one("SELECT * from valid_word where valword = :word;", values={"word":currGame["word"]})
         # app.logger.info(""""SELECT * from valid_word where valword = :word;", values={"word":currGame["word"]}""")
     
-        guessNum = await db.fetch_one("SELECT guesses from game where gameid = :gameid",values={"gameid":currGame["gameid"]})
+        guessNum = await next_db.fetch_one("SELECT guesses from game where gameid = :gameid",values={"gameid":currGame["gameid"]})
         # app.logger.info("""SELECT guesses from game where gameid = :gameid",values={"gameid":currGame["gameid"]}""")
     
         accuracy = ""
         if(isValidGuess is not None and len(isValidGuess) >= 1 and guessNum[0] < 6):
             try: 
                 # make a dict mapping each character and its position from the answer
-                answord = await db.fetch_one("SELECT answord FROM answer as a, games as g  where g.gameid = :gameid and g.answerid = a.answerid",values={"gameid":currGame["gameid"]})
+                answord = await next_db.fetch_one("SELECT answord FROM answer as a, games as g  where g.gameid = :gameid and g.answerid = a.answerid",values={"gameid":currGame["gameid"]})
                 # app.logger.info(""""SELECT answord FROM answer as a, games as g  where g.gameid = :gameid and g.answerid = a.answerid",values={"gameid":currGame["gameid"]}""")
              
                 ansDict = {}
@@ -255,9 +270,14 @@ async def add_guess(data):
 async def all_games():
     db = await _get_db()
     auth = request.authorization
+
+    # connect to db replica
+    read_only_db_cycle = itertools.cycle(_get_read_db_colle())
+    next_db = next(read_only_db_cycle)
+
     if auth == None:
         return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
-    games_val = await db.fetch_all( "SELECT * FROM game as a where gameid IN (select gameid from games where username = :username) and a.gstate = :gstate;", values = {"username":auth["username"],"gstate":"In-progress"})
+    games_val = await next_db.fetch_all( "SELECT * FROM game as a where gameid IN (select gameid from games where username = :username) and a.gstate = :gstate;", values = {"username":auth["username"],"gstate":"In-progress"})
     # app.logger.info(""""SELECT * FROM game as a where gameid IN (select gameid from games where username = :username) and a.gstate = :gstate;", values = {"username":auth["username"],"gstate":"In-progress"}""")
     if games_val is None or len(games_val) == 0:
         return { "Message": "No Active Games" },406
@@ -268,10 +288,14 @@ async def all_games():
 async def my_game(gameid):
     db = await _get_db()
     
+    # connect to db replica
+    read_only_db_cycle = itertools.cycle(_get_read_db_colle())
+    next_db = next(read_only_db_cycle)
+
     auth = request.authorization
     if auth == None:
         return {"Error": "User not verified"}, 401, {'WWW-Authenticate': 'Basic realm = "Login required"'}
-    guess_val = await db.fetch_all( "SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid})
+    guess_val = await next_db.fetch_all( "SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid})
     # app.logger.info(""""SELECT a.*, b.guesses, b.gstate FROM guess as a, game as b WHERE a.gameid = b.gameid and a.gameid = :gameid", values={"gameid":gameid}""")
 
     if guess_val is None or len(guess_val) == 0:
