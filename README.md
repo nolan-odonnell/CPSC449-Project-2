@@ -1,7 +1,7 @@
-# Wordle Backend Project 2 : API Gateway and Load Balancing
+# Wordle Backend Project 3 : Read Replication and NoSQL
 
-Group 4 team members:
-Florentino Becerra, Mark Carbajal, Nicholas Ayson, Nolan O'donnell
+Group 3 team members:
+Nolan O'Donnell, Alex Chen, Henry Nguyen
 
 Steps to run the project:
 
@@ -19,16 +19,18 @@ Steps to run the project:
 
 4. Start the API by running
 
-   foreman start -m user=1,game=3
+   foreman start
 
 5. Go to local.gd docs to view and test all the endpoints
    game:   
-   http://wordle.local.gd:5001/docs   
-   http://wordle.local.gd:5002/docs   
-   http://wordle.local.gd:5003/docs   
-      
+   http://wordle.local.gd:5100/docs   
+   http://wordle.local.gd:5200/docs   
+   http://wordle.local.gd:5300/docs   
+
    user:  
-   http://wordle.local.gd:5100/docs  
+   http://wordle.local.gd:5000/docs  
+
+
 
    Using http://tuffix-vm should yield in redirecting all requests over to the appropriate microservices.
 
@@ -37,12 +39,13 @@ Files to turn in:
 1. Python source code:
 
    game.py  
-   user.py  
+   user.py
+   leaderboard.py  
 
 
 2. Procfile:
 
-   Procfile contains 2 microservices game and user that have no coupling
+   Procfile contains 2 microservices game and user that have no coupling. The procfile also contains the primary, secondary, and secondary2 litefs configs
 
 3. Initialization and population scripts for the databases:
 
